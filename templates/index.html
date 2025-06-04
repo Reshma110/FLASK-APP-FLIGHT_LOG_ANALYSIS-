@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>TARA-UAV log viewer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 80px 20px 20px;
+            scroll-behavior: smooth;
+        }
+        .navbar-brand img {
+            height: 40px;
+        }
+        .navbar-text-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        .graph-container {
+            margin-bottom: 60px;
+        }
+        h1 {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar fixed-top navbar-expand-lg navbar-dark" style="background-color: #007BFF;">
+    <div class="container-fluid position-relative">
+        <a class="navbar-brand" href="/">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+        </a>
+        <div class="navbar-text-center">TARAUAV-LOG VIEWER</div>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Navigation</a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#baro-section">BARO</a></li>
+                        <li><a class="dropdown-item" href="#rcou-section">Motor O/P</a></li>
+                        <li><a class="dropdown-item" href="#powr-section">POWR</a></li>
+                        <li><a class="dropdown-item" href="#att-section">ATT(roll,pitch,yaw)</a></li>
+                        <li><a class="dropdown-item" href="#rate-section">RATE</a></li>
+                        <li><a class="dropdown-item" href="#vibe-section">Vibration metrics</a></li>
+                        <li><a class="dropdown-item" href="#pscd-section">VEL X</a></li>
+                        <li><a class="dropdown-item" href="#psce-section">VEL Y</a></li>
+                        <li><a class="dropdown-item" href="#pscn-section">VEL Z</a></li>
+                        <li><a class="dropdown-item" href="#imu-section">IMU</a></li>
+                        <li><a class="dropdown-item" href="#rcin-section">Motor I/P</a></li>
+                        <li><a class="dropdown-item" href="#mag-section">MAG</a></li>
+                        <li><a class="dropdown-item" href="#gpa-section">GPS Uncertainity</a></li>
+                        <li><a class="dropdown-item" href="#bat-section">BATTERY</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item"><a class="nav-link" href="/upload">Upload</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+
+    <h1 id="baro-section">BARO</h1>
+    <div id="baro-plot" class="graph-container"></div>
+
+    <h1 id="rcou-section">RCOU</h1>
+    <div id="rcou-plot" class="graph-container"></div>
+
+    <h1 id="powr-section">POWR</h1>
+    <div id="powr-plot" class="graph-container"></div>
+
+    <h1 id="att-section">ATT</h1>
+    <div id="att-plot" class="graph-container"></div>
+
+    <h1 id="rate-section">RATE</h1>
+    <div id="rate-plot" class="graph-container"></div>
+
+    <h1 id="vibe-section">Vibration metrics</h1>
+    <div id="vibe-plot" class="graph-container"></div>
+
+    <h1 id="pscd-section">VEL X (PSCD)</h1>
+    <div id="pscd-plot" class="graph-container"></div>
+
+    <h1 id="psce-section">VEL Y (PSCE)</h1>
+    <div id="psce-plot" class="graph-container"></div>
+
+    <h1 id="pscn-section">VEL Z (PSCN)</h1>
+    <div id="pscn-plot" class="graph-container"></div>
+
+    <h1 id="imu-section">IMU</h1>
+    <h2>Gyroscope</h2>
+    <div id="gyro-plot" class="graph-container"></div>
+    <h2>Accelerometer</h2>
+    <div id="acc-plot" class="graph-container"></div>
+
+    {% if rcin_plot_data %}
+    <h1 id="rcin-section">RADIO INPUT RCIN</h1>
+    <div id="rcin-plot" class="graph-container"></div>
+    {% endif %}
+
+    {% if mag_plot_data %}
+    <h1 id="mag-section">MAGNETIC FIELD</h1>
+    <div id="mag-plot" class="graph-container"></div>
+    {% endif %}
+
+    {% if gpa_plot_data %}
+    <h1 id="gpa-section">GPS UNCERTAINTY</h1>
+    <div id="gpa-plot" class="graph-container"></div>
+    {% endif %}
+
+    {% if bat_plot_data %}
+    <h1 id="bat-section">BATTERY POWER</h1>
+    <div id="bat-plot" class="graph-container"></div>
+    {% endif %}
+</div>
+
+<script>
+    const plotConfigs = [
+        {id: 'baro', data: {{ baro_plot_data|tojson }}},
+        {id: 'rcou', data: {{ rcou_plot_data|tojson }}},
+        {id: 'powr', data: {{ powr_plot_data|tojson }}},
+        {id: 'att', data: {{ att_plot_data|tojson }}},
+        {id: 'rate', data: {{ rate_plot_data|tojson }}},
+        {id: 'vibe', data: {{ vibe_plot_data|tojson }}},
+        {id: 'pscd', data: {{ pscd_plot_data|tojson }}},
+        {id: 'psce', data: {{ psce_plot_data|tojson }}},
+        {id: 'pscn', data: {{ pscn_plot_data|tojson }}},
+        {id: 'gyro', data: {{ gyro_data|tojson }}},
+        {id: 'acc', data: {{ acc_data|tojson }}},
+        {% if rcin_plot_data %}{id: 'rcin', data: {{ rcin_plot_data|tojson }} },{% endif %}
+        {% if mag_plot_data %}{id: 'mag', data: {{ mag_plot_data|tojson }} },{% endif %}
+        {% if gpa_plot_data %}{id: 'gpa', data: {{ gpa_plot_data|tojson }} },{% endif %}
+        {% if bat_plot_data %}{id: 'bat', data: {{ bat_plot_data|tojson }} },{% endif %}
+    ];
+
+    plotConfigs.forEach(cfg => {
+        Plotly.newPlot(cfg.id + '-plot', cfg.data, {
+            title: cfg.id.toUpperCase() + ' Plot',
+            xaxis: { title: 'Time (s)' },
+            yaxis: { title: 'Value' },
+            hovermode: 'x unified'
+        });
+    });
+</script>
+
+</body>
+</html>
