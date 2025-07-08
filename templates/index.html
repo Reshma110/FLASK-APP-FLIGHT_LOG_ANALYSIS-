@@ -87,8 +87,15 @@
     </div>
 
     <!-- ✅ Graph Sections -->
+<!-- Dropdown for selecting the BARO instance -->
     <h1 id="baro-section">BARO</h1>
+    <select id="baro-instance-select" class="form-select">
+        <option value="0">Instance 0</option>
+        <option value="1">Instance 1</option>
+    </select>
+
     <div id="baro-plot" class="graph-container"></div>
+
 
     <h1 id="rcou-section">RCOU</h1>
     <div id="rcou-plot" class="graph-container"></div>
@@ -141,10 +148,38 @@
     {% endif %}
 </div>
 
-<!-- ✅ Plotly Chart Script -->
 <script>
+    // Get the BARO data for both instances
+    const baroPlotDataInstance0 = {{ baro_plot_data_instance_0 | tojson }};
+    const baroPlotDataInstance1 = {{ baro_plot_data_instance_1 | tojson }};
+    
+    // Initialize the plot for Instance 0 (default)
+    let currentBaroPlotData = baroPlotDataInstance0;
+
+    // Function to update the BARO graph based on instance selection
+    document.getElementById('baro-instance-select').addEventListener('change', function() {
+        const selectedInstance = this.value;
+        currentBaroPlotData = (selectedInstance === '1') ? baroPlotDataInstance1 : baroPlotDataInstance0;
+
+        // Update the BARO plot
+        Plotly.newPlot('baro-plot', currentBaroPlotData, {
+            title: 'BARO Plot',
+            xaxis: { title: 'Time (s)' },
+            yaxis: { title: 'Value' },
+            hovermode: 'x unified'
+        });
+    });
+
+    // Initially render the BARO plot for Instance 0
+    Plotly.newPlot('baro-plot', currentBaroPlotData, {
+        title: 'BARO Plot',
+        xaxis: { title: 'Time (s)' },
+        yaxis: { title: 'Value' },
+        hovermode: 'x unified'
+    });
+
+    // Existing Plotly configuration for other plots
     const plotConfigs = [
-        {id: 'baro', data: {{ baro_plot_data|tojson }}},
         {id: 'rcou', data: {{ rcou_plot_data|tojson }}},
         {id: 'powr', data: {{ powr_plot_data|tojson }}},
         {id: 'att', data: {{ att_plot_data|tojson }}},
@@ -170,6 +205,3 @@
         });
     });
 </script>
-
-</body>
-</html>

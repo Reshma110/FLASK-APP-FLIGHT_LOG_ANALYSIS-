@@ -61,7 +61,7 @@ def load_gpa_df(path): return load_df_generic(path, 'GPA', 'GPA', 'I')
 def load_bat_df(path): return load_df_generic(path, 'BAT', 'BAT', 'Inst')
 
 # Summary
-def compute_summary_data(path, imu_df, att_df, pscd_df):
+def compute_summary_data(path, imu_df, att_df, pscd_df,psce_df,pscn_df):
     try:
         start_time = datetime.datetime.fromtimestamp(imu_df["TimeS"].min())
         end_time = datetime.datetime.fromtimestamp(imu_df["TimeS"].max())
@@ -70,16 +70,30 @@ def compute_summary_data(path, imu_df, att_df, pscd_df):
 
         max_tilt = max(att_df['Roll'].abs().max(), att_df['Pitch'].abs().max())
 
-        if not pscd_df.empty and all(col in pscd_df.columns for col in ['VN', 'VE', 'VD']):
-            v_squared = pscd_df['VN']**2 + pscd_df['VE']**2 + pscd_df['VD']**2
-            avg_speed = np.sqrt(v_squared).mean() * 3.6
-            max_speed = np.sqrt(v_squared).max() * 3.6
+        if not pscd_df.empty and 'VN' in pscn_df.columns and 'VE' in psce_df.columns and 'VD' in pscd_df.columns:
+            speed_squared = pscn_df['VN']**2 + psce_df['VE']**2 + pscd_df['VD']**2
+            speed = np.sqrt(speed_squared)
+            avg_speed = speed.mean() * 3.6
+            max_speed = speed.max() * 3.6
             max_speed_up = pscd_df['VD'].min() * -1
             max_speed_down = pscd_df['VD'].max()
         else:
             avg_speed = max_speed = max_speed_up = max_speed_down = None
 
-        distance_m = np.sqrt((pscd_df[['PN', 'PE', 'PD']].diff()**2).sum(axis=1)).sum() if all(col in pscd_df.columns for col in ['PN', 'PE', 'PD']) else None
+                
+        def compute_distance(df, columns):
+            if all(col in df.columns for col in columns):
+                return np.sqrt((df[columns].diff()**2).sum(axis=1)).sum()
+            return None
+        
+        distance_pscd = compute_distance(pscd_df, ['PD'])
+        distance_psce = compute_distance(psce_df, ['PE'])
+        distance_pscn = compute_distance(pscn_df, ['PN'])
+        
+        total_distance = (distance_pscd if distance_pscd is not None else 0) + \
+                         (distance_psce if distance_psce is not None else 0) + \
+                         (distance_pscn if distance_pscn is not None else 0)
+
         max_altitude_diff = pscd_df['PD'].max() - pscd_df['PD'].min() if 'PD' in pscd_df.columns else None
 
         summary = {
@@ -92,13 +106,13 @@ def compute_summary_data(path, imu_df, att_df, pscd_df):
             "Logging Duration": duration_str,
             "Flight Time": duration_str,
             "Vehicle UUID": "000600000000393137313132510100280040",
-            "Distance": f"{distance_m:.1f} m" if distance_m else "N/A",
+            "Total Distance": f"{total_distance:.1f} m" if total_distance else "N/A",
             "Max Altitude Difference": f"{max_altitude_diff:.1f} m" if max_altitude_diff else "N/A",
             "Average Speed": f"{avg_speed:.1f} km/h" if avg_speed else "N/A",
             "Max Speed": f"{max_speed:.1f} km/h" if max_speed else "N/A",
-            "Max Speed Horizontal": f"{max_speed:.1f} km/h" if max_speed else "N/A",
-            "Max Speed Up": f"{max_speed_up:.1f} m/s" if max_speed_up else "N/A",
-            "Max Speed Down": f"{abs(max_speed_down):.1f} m/s" if max_speed_down else "N/A",
+            # "Max Speed Horizontal": f"{max_speed:.1f} km/h" if max_speed else "N/A",
+            # "Max Speed Up": f"{max_speed_up:.1f} m/s" if max_speed_up else "N/A",
+            # "Max Speed Down": f"{abs(max_speed_down):.1f} m/s" if max_speed_down else "N/A",
             "Max Tilt Angle": f"{max_tilt:.1f} deg" if max_tilt else "N/A"
         }
 
@@ -160,6 +174,8 @@ def upload():
 
             try:
                 baro_df = load_baro_df(path)
+                baro_df_instance_0 = baro_df[baro_df['I'] == 0]
+                baro_df_instance_1 = baro_df[baro_df['I'] == 1]
                 rcou_df = load_rcou_df(path)
                 powr_df = load_powr_df(path)
                 att_df = load_att_df(path)
@@ -170,7 +186,7 @@ def upload():
                 pscn_df = load_pscn_df(path)
                 imu_df = load_imu_df(path)
 
-                summary_data = compute_summary_data(path, imu_df, att_df, pscd_df)
+                summary_data = compute_summary_data(path, imu_df, att_df, pscd_df,psce_df, pscn_df)
 
                 try: mag_df = load_mag_df(path); mag_plot_data = create_instance_plot(mag_df, ['MagX','MagY','MagZ','OfsX','OfsY','OfsZ','MOX','MOY','MOZ','Health','S'], 'I', 'MAG: ')
                 except: mag_plot_data = []
@@ -193,7 +209,8 @@ def upload():
 
                 return render_template('index.html',
                     summary_data=summary_data,
-                    baro_plot_data=create_instance_plot(baro_df, baro_params, 'I', 'BARO: '),
+                    baro_plot_data_instance_0=create_instance_plot(baro_df_instance_0, baro_params, 'I', 'BARO: '),
+                    baro_plot_data_instance_1=create_instance_plot(baro_df_instance_1, baro_params, 'I', 'BARO: '),
                     rcou_plot_data=create_channel_plot(rcou_df, 'C', 'RCOU'),
                     powr_plot_data=create_basic_plot(powr_df, ['Vcc','VServo','Flags','AccFlags','Safety'], 'POWR: '),
                     att_plot_data=create_basic_plot(att_df, ['Roll','Pitch','Yaw'], 'ATT: '),
