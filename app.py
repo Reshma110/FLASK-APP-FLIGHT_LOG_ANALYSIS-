@@ -102,7 +102,7 @@ def compute_summary_data(path, imu_df, att_df, pscd_df,psce_df,pscn_df):
             "Software Version": "v1.13.2 (46a12a09)",
             "OS Version": "NuttX, v11.0.0",
             "Estimator": "EKF2",
-            "Logging Start": start_time.strftime('%d-%m-%Y %H:%M'),
+            "Logging Start": start_time,
             "Logging Duration": duration_str,
             "Flight Time": duration_str,
             "Vehicle UUID": "000600000000393137313132510100280040",
